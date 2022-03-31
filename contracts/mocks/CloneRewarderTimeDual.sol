@@ -16,7 +16,8 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
     using BoringMath for uint256;
     using BoringMath128 for uint128;
     using BoringERC20 for IERC20;
-
+    // Reward of token 1
+    // REward of token 2
     IERC20 public rewardToken1;
     IERC20 public rewardToken2;
 
@@ -26,15 +27,15 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
     /// `rewardDebt2` The amount of reward token 2 entitled to the user.
     struct UserInfo {
         uint256 amount;
-        uint256 rewardDebt1;
-        uint256 rewardDebt2;
+        uint256 rewardDebt1; //Number Debt of reward token 1
+        uint256 rewardDebt2; //NUmber Debt of reward token 2
     }
 
     /// @notice Info of the rewarder pool.
     struct PoolInfo {
-        uint128 accToken1PerShare;
-        uint128 accToken2PerShare;
-        uint64 lastRewardTime;
+        uint128 accToken1PerShare; // Number token1 reward per share each  other secound
+        uint128 accToken2PerShare; // Number token 1 reward per share each other secound
+        uint64 lastRewardTime; // Time staking token was done
     }
 
     /// @notice Info of each pool.
@@ -63,15 +64,17 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
     /// @notice Serves as the constructor for clones, as clones can't have a regular constructor
     /// @dev `data` is abi encoded in the format: (IERC20 collateral, IERC20 asset, IOracle oracle, bytes oracleData)
     function init(bytes calldata data) public payable {
+    // Check address of tokenReward1 must different address 0
         require(rewardToken1 == IERC20(0), "Rewarder: already initialized");
+    // Encode information of token 1 and token 2 and address of token reward
         (rewardToken1, rewardToken2, owner, rewardPerSecond1, rewardPerSecond2, masterLpToken) = abi.decode(data, (IERC20, IERC20, address, uint128, uint128, IERC20));
-        require(rewardToken1 != IERC20(0), "Rewarder: bad token");
+    // address of rewardToken must be addess(0)
+        require(rewardToken1 != IERC20(0), "Rewarder: bad token");    
         emit LogInit(rewardToken1, rewardToken2, owner, rewardPerSecond1, rewardPerSecond2, masterLpToken);
     }
-
+    // Transfer reward for user and update the information of user and liquidity pool after chage
     function onSushiReward (uint256 pid, address _user, address to, uint256, uint256 lpTokenAmount) onlyMCV2 override external {
         require(IMasterChefV2(MASTERCHEF_V2).lpToken(pid) == masterLpToken);
-
         PoolInfo memory pool = updatePool(pid);
         UserInfo memory _userInfo = userInfo[pid][_user];
         uint256 pending1;
@@ -96,7 +99,7 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
 
         emit LogOnReward(_user, pid, pending1, pending2, to);
     }
-    
+    // Get list pedinf reward token 1 and token 2  (apply function pendingToken)
     function pendingTokens(uint256 pid, address user, uint256) override external view returns (IERC20[] memory rewardTokens, uint256[] memory rewardAmounts) {
         IERC20[] memory _rewardTokens = new IERC20[](2);
         _rewardTokens[0] = rewardToken1;
@@ -107,7 +110,7 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
         _rewardAmounts[1] = reward2;
         return (_rewardTokens, _rewardAmounts);
     }
-
+    // Get reward per seconds chain addter chain
     function rewardRates() external view returns (uint256[] memory) {
         uint256[] memory _rewardRates = new uint256[](2);
         _rewardRates[0] = rewardPerSecond1;
@@ -125,6 +128,7 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
     }
 
     modifier onlyMCV2 {
+        // Check msg.sender must equal MASTERCHEF_V2
         require(
             msg.sender == MASTERCHEF_V2,
             "Only MCV2 can call this function."
@@ -136,10 +140,15 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
     /// @param _pid The index of the pool. See `poolInfo`.
     /// @param _user Address of user.
     function pendingToken(uint256 _pid, address _user) public view returns (uint256 reward1, uint256 reward2) {
+        // Get pool information
         PoolInfo memory pool = poolInfo[_pid];
+        // Get user information
         UserInfo storage user = userInfo[_pid][_user];
+        // Get number token1 share per second
         uint256 accToken1PerShare = pool.accToken1PerShare;
+        // Get number token2 share per second
         uint256 accToken2PerShare = pool.accToken2PerShare;
+        // Get total supply of address MasterChefV2
         uint256 lpSupply = IMasterChefV2(MASTERCHEF_V2).lpToken(_pid).balanceOf(MASTERCHEF_V2);
         if (block.timestamp > pool.lastRewardTime && lpSupply != 0) {
             uint256 time = block.timestamp.sub(pool.lastRewardTime);
@@ -156,18 +165,28 @@ contract CloneRewarderTimeDual is IRewarder,  BoringOwnable{
     /// @param pid The index of the pool. See `poolInfo`.
     /// @return pool Returns the pool that was updated.
     function updatePool(uint256 pid) public returns (PoolInfo memory pool) {
+    // Get pool information    
         pool = poolInfo[pid];
+    // Check time currrent block great than pool
         if (block.timestamp > pool.lastRewardTime) {
+    // Get Balance of liquidity pool (follow id pid)         
             uint256 lpSupply = IMasterChefV2(MASTERCHEF_V2).lpToken(pid).balanceOf(MASTERCHEF_V2);
-
+    // Check total balance liquidity pool  greater then 0
             if (lpSupply > 0) {
+    // Get time space time between stake statr to stakw finish           
                 uint256 time = block.timestamp.sub(pool.lastRewardTime);
+    // Calculate pendinf reward token 1             
                 uint256 pending1 = time.mul(rewardPerSecond1);
+    // Calculate pendinf reward token 2            
                 uint256 pending2 = time.mul(rewardPerSecond2);
+    // Update pool1 after current time            
                 pool.accToken1PerShare = pool.accToken1PerShare.add((pending1.mul(ACC_TOKEN_PRECISION) / lpSupply).to128());
+    // Update pool2 after current time            
                 pool.accToken2PerShare = pool.accToken2PerShare.add((pending2.mul(ACC_TOKEN_PRECISION) / lpSupply).to128());
             }
+    // Set last reward time        
             pool.lastRewardTime = block.timestamp.to64();
+    // copy pool        
             poolInfo[pid] = pool;
             emit LogUpdatePool(pid, pool.lastRewardTime, lpSupply, pool.accToken1PerShare, pool.accToken2PerShare);
         }

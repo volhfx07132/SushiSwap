@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-
+// Contract wETH: Wrapped Token
 pragma solidity 0.6.12;
 
 contract WETH9Mock {
@@ -47,17 +47,13 @@ contract WETH9Mock {
 		uint256 wad
 	) public returns (bool) {
 		require(balanceOf[src] >= wad, "WETH9: Error");
-
 		if (src != msg.sender && allowance[src][msg.sender] != uint256(-1)) {
 			require(allowance[src][msg.sender] >= wad, "WETH9: Error");
 			allowance[src][msg.sender] -= wad;
 		}
-
 		balanceOf[src] -= wad;
 		balanceOf[dst] += wad;
-
 		emit Transfer(src, dst, wad);
-
 		return true;
 	}
 }
