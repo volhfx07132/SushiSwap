@@ -16,7 +16,7 @@ interface IMigrator {
 
 contract UniswapV2Pair is UniswapV2ERC20 {
     using SafeMathUniswap  for uint;
-    using UQ112x112 for uint224;
+    using UQ112x112 for uint224; 
 
     uint public constant MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
@@ -179,13 +179,21 @@ contract UniswapV2Pair is UniswapV2ERC20 {
         { // scope for _token{0,1}, avoids stack too deep errors
         address _token0 = token0;
         address _token1 = token1;
+
+        // Check address not equal _token0
         require(to != _token0 && to != _token1, 'UniswapV2: INVALID_TO');
+        // Check amount0Out grate then 0, encode address from and address to, and number amount0Out
         if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out); // optimistically transfer tokens
+        // Check amount1Out grate then 0, ecnode address from and addres to, and number amount1Out
         if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out); // optimistically transfer tokens
+        // data of user great then 
         if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
+        // Get balance of token0
         balance0 = IERC20Uniswap(_token0).balanceOf(address(this));
+        // Get bakance of token1
         balance1 = IERC20Uniswap(_token1).balanceOf(address(this));
         }
+        // 
         uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
         uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
