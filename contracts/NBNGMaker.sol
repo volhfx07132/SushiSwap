@@ -20,16 +20,16 @@ contract NBNGMaker is Ownable {
     using SafeERC20 for IERC20;
 
     // V1 - V5: OK
-    IUniswapV2Factory public immutable factory;
+    IUniswapV2Factory public immutable factory; // Set contract for factory address
     // V1 - V5: OK
-    address public immutable bar;
+    address public immutable bar; // Safe all value of user staking
     // V1 - V5: OK
-    address private immutable nbng;
+    address private immutable nbng; // Address of  token NBNG
     // V1 - V5: OK
-    address private immutable weth;
+    address private immutable weth; //Address of token WETH
 
     // V1 - V5: OK
-    mapping(address => address) internal _bridges;
+    mapping(address => address) internal _bridges; // Mapping user address get address of bridge address
 
     // E1: OK
     event LogBridgeSet(address indexed token, address indexed bridge);
@@ -42,7 +42,7 @@ contract NBNGMaker is Ownable {
         uint256 amount1,
         uint256 amountNBNG
     );
-
+    // Setup for address fot factory, bar, nbng, weth  
     constructor(
         address _factory,
         address _bar,
@@ -59,6 +59,7 @@ contract NBNGMaker is Ownable {
     // C1 - C24: OK
     function bridgeFor(address token) public view returns (address bridge) {
         bridge = _bridges[token];
+        // Check Bridge == Address(0) => set brigder address is weth
         if (bridge == address(0)) {
             bridge = weth;
         }
@@ -149,21 +150,35 @@ contract NBNGMaker is Ownable {
         uint256 amount1
     ) internal returns (uint256 NBNGOut) {
         // Interactions
-        if (token0 == token1) {
+        // If address of token1 equal token2
+        // Same token =
+        if (token0 == token1) {   
+        // Address of token1 equal address of token2
             uint256 amount = amount0.add(amount1);
+        // Address of token 1 and address of token 2 equal nbng(Token SPC)   
             if (token0 == nbng) {
+        // Send token SPC for address bar        
                 IERC20(nbng).safeTransfer(bar, amount);
                 NBNGOut = amount;
             } else if (token0 == weth) {
                 NBNGOut = _toNBNG(weth, amount);
             } else {
+        // Convert token difference token nbng and WETH     
+        // Get address for briger token  
                 address bridge = bridgeFor(token0);
+        // Get amount out when swap token token0 to bridge         
                 amount = _swap(token0, bridge, amount, address(this));
+        // Covert amount: _convertStep() -> Check type of token to convert     
+        // Continue check type contoken    
                 NBNGOut = _convertStep(bridge, bridge, amount, 0);
             }
+        // difference token token0 # token1   
+        // Token0 equal nbng 
         } else if (token0 == nbng) {
             // eg. NBNG - ETH
-            IERC20(nbng).safeTransfer(bar, amount0);
+        // Transfer amount0 of token0 to address bar token ERC20
+            IERC20(nbng).safeTransfer(bar, amount0); 
+        // Get token out     
             NBNGOut = _toNBNG(token1, amount1).add(amount0);
         } else if (token1 == nbng) {
             // eg. USDT - NBNG
@@ -171,19 +186,24 @@ contract NBNGMaker is Ownable {
             NBNGOut = _toNBNG(token0, amount0).add(amount1);
         } else if (token0 == weth) {
             // eg. ETH - USDC
+            // WETH to token USDC
+            // Token token1 to token weth
             NBNGOut = _toNBNG(
                 weth,
                 _swap(token1, weth, amount1, address(this)).add(amount0)
             );
         } else if (token1 == weth) {
             // eg. USDT - ETH
+            // Token WETH to WETH to token USDC
             NBNGOut = _toNBNG(
                 weth,
                 _swap(token0, weth, amount0, address(this)).add(amount1)
             );
         } else {
             // eg. MIC - USDT
+            // Bridge => swap token 
             address bridge0 = bridgeFor(token0);
+            // 
             address bridge1 = bridgeFor(token1);
             if (bridge0 == token1) {
                 // eg. MIC - USDT - and bridgeFor(MIC) = USDT
@@ -216,22 +236,28 @@ contract NBNGMaker is Ownable {
     // C1 - C24: OK
     // All safeTransfer, swap: X1 - X5: OK
     function _swap(
-        address fromToken,
-        address toToken,
-        uint256 amountIn,
-        address to
+        address fromToken, //from
+        address toToken,  //to
+        uint256 amountIn,  //TokenIn
+        address to // Address transfer token
     ) internal returns (uint256 amountOut) {
         // Checks
         // X1 - X5: OK
+        //Get pair address
         IUniswapV2Pair pair =
             IUniswapV2Pair(factory.getPair(fromToken, toToken));
+        // address of pair different 0    
         require(address(pair) != address(0), "NBNGMaker: Cannot convert");
 
         // Interactions
         // X1 - X5: OK
+        // get data value of token in liquidity pool
         (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
+        // set ammount in
         uint256 amountInWithFee = amountIn.mul(997);
+        //Check from token equal pair token
         if (fromToken == pair.token0()) {
+         // Calculate token with amountOut
             amountOut =
                 amountInWithFee.mul(reserve1) /
                 reserve0.mul(1000).add(amountInWithFee);
